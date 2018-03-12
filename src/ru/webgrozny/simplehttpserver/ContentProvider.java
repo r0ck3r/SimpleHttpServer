@@ -54,8 +54,17 @@ public abstract class ContentProvider {
                 parsePost();
                 execute();
 
+                if(responseHeaders.size() > 0 ) {
+                    sendHeaders();
+                }
+
                 if(!headersSent) {
-                    sendFile();
+                    if(serverSettings.isDocumentRootEnabled()) {
+                        sendFile();
+                    } else {
+                        setAnswer(ServerStatus.SERVER_ERROR);
+                        echo("Server error");
+                    }
                 }
 
                 removePostFiles();
@@ -99,7 +108,7 @@ public abstract class ContentProvider {
                     }
 
                     //Headers name=>value storage
-                    if(!first && cLine.indexOf(":") != -1) {
+                    if(!first && cLine.contains(":")) {
                         String left = cLine.substring(0, cLine.indexOf(":"));
                         String right = null;
                         try {
@@ -130,7 +139,7 @@ public abstract class ContentProvider {
             requestMethod = headers.get(0).startsWith("GET") ? RequestMethod.GET : RequestMethod.POST;
             try {
                 queryString = headers.get(0).split(" ")[1];
-                path = queryString.substring(1, queryString.indexOf("?") == -1 ? queryString.length() : queryString.indexOf("?"));
+                path = queryString.substring(1, !queryString.contains("?") ? queryString.length() : queryString.indexOf("?"));
             } catch (ArrayIndexOutOfBoundsException e) {
                 setAnswer(ServerStatus.SERVER_ERROR);
                 System.out.println("Bad request");
@@ -174,7 +183,7 @@ public abstract class ContentProvider {
                     if(cLine.startsWith("Content-Disposition:")) {
                         String[] parameters = cLine.split("; ");
                         String postInputName = parameters[1].split("=")[1].replace("\"", "").replace("\r", "").replace("\n", "");
-                        if(cLine.indexOf("filename=\"") != -1 ) {
+                        if(cLine.contains("filename=\"")) {
                             String uploadFileName = parameters[2].split("=")[1].replace("\"", "").replace("\r", "").replace("\n", "");
                             String contentType = new String(readLine(1024)).replace("\r", "").replace("\n", "");
                             readLine(2);
@@ -231,7 +240,7 @@ public abstract class ContentProvider {
         boolean ret = false;
         if(line.length >= boundayLength && line.length <= boundayLength + 7) { //7 указано примерно, так как впереди и после boundary браузеры добавляют --, а также запас для новой строки
             String string = new String(line);
-            if(string.indexOf(boundary) != -1) {
+            if(string.contains(boundary)) {
                 ret = true;
             }
         }
@@ -262,7 +271,7 @@ public abstract class ContentProvider {
 
     private void parseEncType() {
         String contentType = getHeaderValue("content-type");
-        encType = contentType != null && contentType.indexOf("multipart/form-data") != -1 ? EncType.MULTIPART : EncType.WWW_FORM;
+        encType = contentType != null && contentType.contains("multipart/form-data") ? EncType.MULTIPART : EncType.WWW_FORM;
         if(encType == EncType.MULTIPART) {
             String boundaryName = "boundary=";
             int pos = contentType.indexOf(boundaryName);
@@ -274,7 +283,7 @@ public abstract class ContentProvider {
     }
 
     private void parseGet() {
-        if(queryString.indexOf("?") != -1) {
+        if(queryString.contains("?")) {
             String[] act = queryString.substring(queryString.indexOf("?") + 1).split("&");
             for(String current : act) {
                 String[] values = current.split("=");
@@ -324,7 +333,7 @@ public abstract class ContentProvider {
             path = directoryIndex;
         }
         try {
-            if (path.indexOf("..") != -1) {
+            if (path.contains("..")) {
                 throw new IOException();
             }
             String fileName = documentRoot + "/" + path;
@@ -407,6 +416,22 @@ public abstract class ContentProvider {
 
     public String getHeaderValue(String header) {
         return headersData.get(header.toLowerCase());
+    }
+
+    public String getDocumentRoot() {
+        return documentRoot;
+    }
+
+    public String getFileUploadTemp() {
+        return fileUploadTemp;
+    }
+
+    public String getDirectoryIndex() {
+        return directoryIndex;
+    }
+
+    public int getPort() {
+        return serverSettings.getPort();
     }
 
     public void echo(byte[] bytes) {

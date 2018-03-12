@@ -12,6 +12,7 @@ public class ServerSettings {
     private int port;
     private ProviderGenerator providerGenerator;
     private List<String> defaultHeaders;
+    private boolean documentRootEnabled = true;
 
     private ServerSettings(String documentRoot, String postFileTempDir, String directoryIndex, int port) {
         this.documentRoot = documentRoot;
@@ -56,6 +57,15 @@ public class ServerSettings {
         return this;
     }
 
+    private void setDocumentRootEnabled(boolean enabled) {
+        documentRootEnabled = enabled;
+    }
+
+    public ServerSettings disableDocumentRoot() {
+        setDocumentRootEnabled(false);
+        return this;
+    }
+
     public String getDirectoryIndex() {
         return directoryIndex;
     }
@@ -78,5 +88,9 @@ public class ServerSettings {
 
     public List<String> getDefaultHeaders() {
         return defaultHeaders;
+    }
+
+    public boolean isDocumentRootEnabled() {
+        return documentRootEnabled;
     }
 }

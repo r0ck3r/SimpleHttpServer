@@ -12,6 +12,7 @@ public class Main {
                 .setDocumentRoot("/var/www/html")
                 .setPostFileTempDir("/tmp/web")
                 .setPort(80)
+                .disableDocumentRoot()
                 .setProviderGenerator(new ProviderGenerator() {
                     @Override
                     public ContentProvider generate() {
