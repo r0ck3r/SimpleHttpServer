@@ -1,9 +1,16 @@
 package ru.webgrozny.simplehttpserver;
 
+import javax.net.ssl.KeyManagerFactory;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLServerSocket;
+import javax.net.ssl.SSLServerSocketFactory;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.security.*;
+import java.security.cert.CertificateException;
 
 public class Server {
     private int port;
@@ -22,7 +29,36 @@ public class Server {
         if(!started) {
             started = true;
             try {
-                serverSocket = new ServerSocket(port);
+                if(serverSettings.getJksKey() != null && serverSettings.getJksPass() != null) {
+                    String jksFile = serverSettings.getJksKey();
+                    String jksPass = serverSettings.getJksPass();
+                    try {
+                        KeyStore ks = KeyStore.getInstance("JKS");
+                        ks.load(new FileInputStream(jksFile), jksPass.toCharArray());
+                        KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
+                        kmf.init(ks, jksPass.toCharArray());
+
+                        SSLContext sc = SSLContext.getInstance("TLS");
+                        sc.init(kmf.getKeyManagers(), null, null);
+
+                        SSLServerSocketFactory ssf = sc.getServerSocketFactory();
+                        SSLServerSocket s = (SSLServerSocket) ssf.createServerSocket(port);
+                        serverSocket = s;
+                    } catch (KeyStoreException e) {
+                        e.printStackTrace();
+                    } catch (CertificateException e) {
+                        e.printStackTrace();
+                    } catch (UnrecoverableKeyException e) {
+                        e.printStackTrace();
+                    } catch (NoSuchAlgorithmException e) {
+                        e.printStackTrace();
+                    } catch (KeyManagementException e) {
+                        e.printStackTrace();
+                    }
+                } else {
+                    serverSocket = new ServerSocket(port);
+                }
+
                 while (started) {
                     try {
                         appendClient(serverSocket.accept());

@@ -13,6 +13,8 @@ public class ServerSettings {
     private ProviderGenerator providerGenerator;
     private List<String> defaultHeaders;
     private boolean documentRootEnabled = true;
+    private String jksKey;
+    private String jksPass;
 
     private ServerSettings(String documentRoot, String postFileTempDir, String directoryIndex, int port) {
         this.documentRoot = documentRoot;
@@ -66,6 +68,12 @@ public class ServerSettings {
         return this;
     }
 
+    public ServerSettings setJKSKey(String key, String password) {
+        jksKey = key;
+        jksPass = password;
+        return this;
+    }
+
     public String getDirectoryIndex() {
         return directoryIndex;
     }
@@ -92,5 +100,13 @@ public class ServerSettings {
 
     public boolean isDocumentRootEnabled() {
         return documentRootEnabled;
+    }
+
+    public String getJksKey() {
+        return jksKey;
+    }
+
+    public String getJksPass() {
+        return jksPass;
     }
 }

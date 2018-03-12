@@ -38,7 +38,6 @@ public abstract class ContentProvider {
         this.serverSettings = serverSettings;
         this.socket = socket;
         try {
-
             documentRoot = serverSettings.getDocumentRoot();
             fileUploadTemp = serverSettings.getPostFileTempDir();
             directoryIndex = serverSettings.getDirectoryIndex();
