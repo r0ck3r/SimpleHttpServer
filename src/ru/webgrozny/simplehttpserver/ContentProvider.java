@@ -434,6 +434,18 @@ public abstract class ContentProvider {
         return serverSettings.getPort();
     }
 
+    public String getHost() {
+        return getHeaderValue("host");
+    }
+
+    public String getRemoteAddress() {
+        return socket.getInetAddress().getHostAddress();
+    }
+
+    public int getRemotePort() {
+        return socket.getPort();
+    }
+
     public void echo(byte[] bytes) {
         if(!headersSent) {
             sendHeaders();
