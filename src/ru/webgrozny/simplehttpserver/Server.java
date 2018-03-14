@@ -1,9 +1,7 @@
 package ru.webgrozny.simplehttpserver;
 
-import javax.net.ssl.KeyManagerFactory;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLServerSocket;
-import javax.net.ssl.SSLServerSocketFactory;
+import javax.net.ServerSocketFactory;
+import javax.net.ssl.*;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -18,6 +16,7 @@ public class Server {
     private boolean started = false;
     private ProviderGenerator providerGenerator;
     private ServerSettings serverSettings;
+    private SSLContext sslContext = null;
 
     public Server(ServerSettings serverSettings) {
         this.serverSettings = serverSettings;
@@ -37,13 +36,8 @@ public class Server {
                         ks.load(new FileInputStream(jksFile), jksPass.toCharArray());
                         KeyManagerFactory kmf = KeyManagerFactory.getInstance(KeyManagerFactory.getDefaultAlgorithm());
                         kmf.init(ks, jksPass.toCharArray());
-
-                        SSLContext sc = SSLContext.getInstance("TLS");
-                        sc.init(kmf.getKeyManagers(), null, null);
-
-                        SSLServerSocketFactory ssf = sc.getServerSocketFactory();
-                        SSLServerSocket s = (SSLServerSocket) ssf.createServerSocket(port);
-                        serverSocket = s;
+                        sslContext = SSLContext.getInstance("TLS");
+                        sslContext.init(kmf.getKeyManagers(), null, null);
                     } catch (KeyStoreException e) {
                         e.printStackTrace();
                     } catch (CertificateException e) {
@@ -55,10 +49,8 @@ public class Server {
                     } catch (KeyManagementException e) {
                         e.printStackTrace();
                     }
-                } else {
-                    serverSocket = new ServerSocket(port);
                 }
-
+                serverSocket = new ServerSocket(port);
                 while (started) {
                     try {
                         appendClient(serverSocket.accept());
@@ -96,7 +88,7 @@ public class Server {
                         }
                     };
                 }
-                contentProvider.start(socket, serverSettings);
+                contentProvider.start(socket, serverSettings, sslContext);
                 try {
                     socket.close();
                 } catch (IOException e) {

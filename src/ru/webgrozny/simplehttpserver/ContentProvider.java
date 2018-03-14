@@ -1,6 +1,8 @@
 package ru.webgrozny.simplehttpserver;
 
 
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLSocketFactory;
 import java.io.*;
 import java.net.Socket;
 import java.net.URLDecoder;
@@ -10,7 +12,8 @@ import java.util.*;
 
 public abstract class ContentProvider {
     private String queryString = null;
-    private Socket socket;
+    private Socket plainSocket;
+    private Socket usingSocket;
     private InputStream socketInputStream;
     private OutputStream socketOutputStream;
     private List<String> headers = new ArrayList<>();
@@ -29,21 +32,37 @@ public abstract class ContentProvider {
     private Map<String, PostFile> postFiles = new HashMap<>();
     private boolean headersSent = false;
     private ServerSettings serverSettings;
+    ByteArrayInputStream socketFirstByteInputStream;
 
     private String documentRoot;
     private String fileUploadTemp;
     private String directoryIndex;
 
-    public void start(Socket socket, ServerSettings serverSettings) {
+    public void start(Socket socketParameter, ServerSettings serverSettings, SSLContext sslContext) {
         this.serverSettings = serverSettings;
-        this.socket = socket;
+
         try {
             documentRoot = serverSettings.getDocumentRoot();
             fileUploadTemp = serverSettings.getPostFileTempDir();
             directoryIndex = serverSettings.getDirectoryIndex();
 
-            socketInputStream = socket.getInputStream();
-            socketOutputStream = socket.getOutputStream();
+            plainSocket = socketParameter;
+            if(sslContext != null) {
+                SSLSocketFactory sslSocketFactory = sslContext.getSocketFactory();
+                    int c = plainSocket.getInputStream().read();
+                    socketFirstByteInputStream = new ByteArrayInputStream(new byte[]{(byte) c});
+                    if (c == 22) { //SSL Connection is starting
+                        usingSocket = sslSocketFactory.createSocket(plainSocket, socketFirstByteInputStream, true);
+                        socketInputStream = usingSocket.getInputStream();
+                    } else {
+                        usingSocket = plainSocket;
+                        socketInputStream = new SequenceInputStream(socketFirstByteInputStream, usingSocket.getInputStream());
+                    }
+            } else {
+                usingSocket = socketParameter;
+            }
+
+            socketOutputStream = usingSocket.getOutputStream();
             socketBufferedReader = new BufferedReader(new InputStreamReader(socketInputStream));
 
             parseHeaders();
@@ -438,11 +457,11 @@ public abstract class ContentProvider {
     }
 
     public String getRemoteAddress() {
-        return socket.getInetAddress().getHostAddress();
+        return usingSocket.getInetAddress().getHostAddress();
     }
 
     public int getRemotePort() {
-        return socket.getPort();
+        return usingSocket.getPort();
     }
 
     public void echo(byte[] bytes) {
