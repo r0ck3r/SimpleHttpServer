@@ -33,6 +33,7 @@ public abstract class ContentProvider {
     private boolean headersSent = false;
     private ServerSettings serverSettings;
     ByteArrayInputStream socketFirstByteInputStream;
+    private boolean httpOnHttpsRequested = false;
 
     private String documentRoot;
     private String fileUploadTemp;
@@ -57,9 +58,11 @@ public abstract class ContentProvider {
                     } else {
                         usingSocket = plainSocket;
                         socketInputStream = new SequenceInputStream(socketFirstByteInputStream, usingSocket.getInputStream());
+                        httpOnHttpsRequested = true;
                     }
             } else {
                 usingSocket = socketParameter;
+                socketInputStream = usingSocket.getInputStream();
             }
 
             socketOutputStream = usingSocket.getOutputStream();
@@ -69,8 +72,18 @@ public abstract class ContentProvider {
             if(headers.size() > 0) {
                 parseServerData();
                 parseGet();
-                parsePost();
-                execute();
+                if(httpOnHttpsRequested && serverSettings.isRedirectHttpToHttps()) {
+                    setAnswer(ServerStatus.MOVED);
+                    int serverPort = getServerPort();
+                    String portString = "";
+                    if(serverPort != 443) {
+                        portString = ":" + serverPort;
+                    }
+                    setHeader("Location: https://" + getHost() + portString + getQueryString());
+                } else {
+                    parsePost();
+                    execute();
+                }
 
                 if(responseHeaders.size() > 0 ) {
                     sendHeaders();
@@ -175,8 +188,8 @@ public abstract class ContentProvider {
         } catch (NumberFormatException e) {
             contentLength = 0;
         }
-
-        if(requestMethod == RequestMethod.POST && contentLength > 0) {
+        int allowedPostSize = serverSettings.getMaxPostSize() * 1024 * 1024;
+        if(requestMethod == RequestMethod.POST && contentLength > 0 && contentLength < allowedPostSize) {
             parseEncType();
             if(encType == EncType.WWW_FORM) {
                 byte[] b = new byte[contentLength];
@@ -453,7 +466,12 @@ public abstract class ContentProvider {
     }
 
     public String getHost() {
-        return getHeaderValue("host");
+        String host = getHeaderValue("host");
+        if(host.contains(":")) {
+            return host.split(":")[0];
+        } else {
+            return host;
+        }
     }
 
     public String getRemoteAddress() {
@@ -462,6 +480,10 @@ public abstract class ContentProvider {
 
     public int getRemotePort() {
         return usingSocket.getPort();
+    }
+
+    public int getServerPort() {
+        return usingSocket.getLocalPort();
     }
 
     public void echo(byte[] bytes) {

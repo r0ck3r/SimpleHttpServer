@@ -15,6 +15,8 @@ public class ServerSettings {
     private boolean documentRootEnabled = true;
     private String jksKey;
     private String jksPass;
+    private int maxPostSize = 4;
+    private boolean redirectHttpToHttps;
 
     private ServerSettings(String documentRoot, String postFileTempDir, String directoryIndex, int port) {
         this.documentRoot = documentRoot;
@@ -27,6 +29,16 @@ public class ServerSettings {
 
     public static ServerSettings createDefaultConfig() {
         return new ServerSettings("/var/www/html", "/tmp", "index.html", 80);
+    }
+
+    public ServerSettings redirectHttpToHttps(boolean redirect) {
+        this.redirectHttpToHttps = redirect;
+        return this;
+    }
+
+    public ServerSettings setMaxPostSize(int valueMB) {
+        maxPostSize = valueMB;
+        return this;
     }
 
     public ServerSettings setDocumentRoot(String documentRoot) {
@@ -108,5 +120,13 @@ public class ServerSettings {
 
     public String getJksPass() {
         return jksPass;
+    }
+
+    public int getMaxPostSize() {
+        return maxPostSize;
+    }
+
+    public boolean isRedirectHttpToHttps() {
+        return redirectHttpToHttps;
     }
 }
