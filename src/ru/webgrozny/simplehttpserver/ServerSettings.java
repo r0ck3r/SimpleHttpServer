@@ -16,7 +16,7 @@ public class ServerSettings {
     private String jksKey;
     private String jksPass;
     private int maxPostSize = 4;
-    private boolean redirectHttpToHttps;
+    private PlainOnSSL operation;
 
     private ServerSettings(String documentRoot, String postFileTempDir, String directoryIndex, int port) {
         this.documentRoot = documentRoot;
@@ -29,11 +29,6 @@ public class ServerSettings {
 
     public static ServerSettings createDefaultConfig() {
         return new ServerSettings("/var/www/html", "/tmp", "index.html", 80);
-    }
-
-    public ServerSettings redirectHttpToHttps(boolean redirect) {
-        this.redirectHttpToHttps = redirect;
-        return this;
     }
 
     public ServerSettings setMaxPostSize(int valueMB) {
@@ -86,6 +81,11 @@ public class ServerSettings {
         return this;
     }
 
+    public ServerSettings setPlainOnSSLOperation(PlainOnSSL operation) {
+        this.operation = operation;
+        return this;
+    }
+
     public String getDirectoryIndex() {
         return directoryIndex;
     }
@@ -126,7 +126,7 @@ public class ServerSettings {
         return maxPostSize;
     }
 
-    public boolean isRedirectHttpToHttps() {
-        return redirectHttpToHttps;
+    public PlainOnSSL getPlainOnSSLOperation() {
+        return operation;
     }
 }

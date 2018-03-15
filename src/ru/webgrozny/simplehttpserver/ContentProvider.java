@@ -72,14 +72,8 @@ public abstract class ContentProvider {
             if(headers.size() > 0) {
                 parseServerData();
                 parseGet();
-                if(httpOnHttpsRequested && serverSettings.isRedirectHttpToHttps()) {
-                    setAnswer(ServerStatus.MOVED);
-                    int serverPort = getServerPort();
-                    String portString = "";
-                    if(serverPort != 443) {
-                        portString = ":" + serverPort;
-                    }
-                    setHeader("Location: https://" + getHost() + portString + getQueryString());
+                if(httpOnHttpsRequested) {
+                    plainOnSSLHelper();
                 } else {
                     parsePost();
                     execute();
@@ -107,6 +101,39 @@ public abstract class ContentProvider {
         }
     }
 
+    private void plainOnSSLHelper() {
+        switch (serverSettings.getPlainOnSSLOperation()) {
+            case PROXY:
+                break;
+            case REJECT:
+                sslReject();
+                break;
+            case REDIR:
+                sslRedir();
+                break;
+        }
+    }
+
+    private void sslRedir() {
+        setAnswer(ServerStatus.MOVED);
+        int serverPort = getServerPort();
+        String portString = "";
+        if(serverPort != 443) {
+            portString = ":" + serverPort;
+        }
+        setHeader("Location: https://" + getHost() + portString + getQueryString());
+    }
+
+    private void sslReject() {
+        setAnswer(ServerStatus.SERVER_ERROR);
+        echo("Plain HTTP is not allowed here");
+    }
+
+    private void sslProxy() {
+        parsePost();
+        execute();
+    }
+
     private void sendHeaders() {
         if(!headersSent) {
             writeAnswer();
@@ -130,6 +157,10 @@ public abstract class ContentProvider {
             int iter = 0;
             while ( (c = inputStream.read()) != -1) {
                 char cChar = (char) c;
+                if(iter == 0 && c == 22) {
+                    usingSocket.close();
+                    return;
+                }
                 if(cChar == '\n') {
                     String cLine = new String(b, 0, iter).replace("\r", "");
                     headers.add(cLine);
