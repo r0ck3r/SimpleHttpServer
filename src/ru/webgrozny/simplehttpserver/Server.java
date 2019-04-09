@@ -94,6 +94,7 @@ public class Server {
                 } catch (IOException e) {
 
                 }
+                System.gc();
             }
         };
         new Thread(thread).start();
