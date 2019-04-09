@@ -26,7 +26,6 @@ public abstract class ContentProvider {
     private EncType encType = EncType.WWW_FORM;
     private String boundary = "";
     private int boundayLength = 0;
-    private BufferedReader socketBufferedReader;
     private HashMap<String, String> post = new HashMap<>();
     private int postRest = 0;
     private Map<String, PostFile> postFiles = new HashMap<>();
@@ -66,7 +65,6 @@ public abstract class ContentProvider {
             }
 
             socketOutputStream = usingSocket.getOutputStream();
-            socketBufferedReader = new BufferedReader(new InputStreamReader(socketInputStream));
 
             parseHeaders();
             if(headers.size() > 0) {
