@@ -18,7 +18,7 @@ public class Main {
                         .setPostFileTempDir("/tmp/web")
                         .disableDocumentRoot()
                         .setJKSKey("/home/user/.keystore", "storepass")
-                        .setPort(443)
+                        .setPort(10443)
                         .setProviderGenerator(new ProviderGenerator() {
                             @Override
                             public ContentProvider generate() {
@@ -33,7 +33,7 @@ public class Main {
         ServerSettings serverSettings2 = ServerSettings.createDefaultConfig()
                 .setDocumentRoot("/var/www/html")
                 .setPostFileTempDir("/tmp/web")
-                .setPort(80)
+                .setPort(1080)
                 .disableDocumentRoot()
                 .setProviderGenerator(new ProviderGenerator() {
                     @Override
