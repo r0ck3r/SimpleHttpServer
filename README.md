@@ -3,7 +3,7 @@
 Is a tiny HTTP-server, that supports file uploading and have user-friendly interface to access to GET and POST parameters and uploaded files
 
 #### Using SSL certificates from letsencrypt
-1) Obtain certificates with acme.sh (availavle here: https://github.com/Neilpang/acme.sh)
+1) Obtain certificates with acme.sh (available here: https://github.com/Neilpang/acme.sh)
 2) Go to <home_folder>/.acme.sh/<your_domain>
 3) Run this:
 ```bash
