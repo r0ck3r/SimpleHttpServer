@@ -33,6 +33,7 @@ public abstract class ContentProvider {
     private ServerSettings serverSettings;
     ByteArrayInputStream socketFirstByteInputStream;
     private boolean httpOnHttpsRequested = false;
+    private String rawPost;
 
     private String documentRoot;
     private String fileUploadTemp;
@@ -47,18 +48,18 @@ public abstract class ContentProvider {
             directoryIndex = serverSettings.getDirectoryIndex();
 
             plainSocket = socketParameter;
-            if(sslContext != null) {
+            if (sslContext != null) {
                 SSLSocketFactory sslSocketFactory = sslContext.getSocketFactory();
-                    int c = plainSocket.getInputStream().read();
-                    socketFirstByteInputStream = new ByteArrayInputStream(new byte[]{(byte) c});
-                    if (c == 22) { //SSL Connection is starting
-                        usingSocket = sslSocketFactory.createSocket(plainSocket, socketFirstByteInputStream, true);
-                        socketInputStream = usingSocket.getInputStream();
-                    } else {
-                        usingSocket = plainSocket;
-                        socketInputStream = new SequenceInputStream(socketFirstByteInputStream, usingSocket.getInputStream());
-                        httpOnHttpsRequested = true;
-                    }
+                int c = plainSocket.getInputStream().read();
+                socketFirstByteInputStream = new ByteArrayInputStream(new byte[]{(byte) c});
+                if (c == 22) { //SSL Connection is starting
+                    usingSocket = sslSocketFactory.createSocket(plainSocket, socketFirstByteInputStream, true);
+                    socketInputStream = usingSocket.getInputStream();
+                } else {
+                    usingSocket = plainSocket;
+                    socketInputStream = new SequenceInputStream(socketFirstByteInputStream, usingSocket.getInputStream());
+                    httpOnHttpsRequested = true;
+                }
             } else {
                 usingSocket = socketParameter;
                 socketInputStream = usingSocket.getInputStream();
@@ -67,22 +68,22 @@ public abstract class ContentProvider {
             socketOutputStream = usingSocket.getOutputStream();
 
             parseHeaders();
-            if(headers.size() > 0) {
+            if (headers.size() > 0) {
                 parseServerData();
                 parseGet();
-                if(httpOnHttpsRequested) {
+                if (httpOnHttpsRequested) {
                     plainOnSSLHelper();
                 } else {
                     parsePost();
                     execute();
                 }
 
-                if(responseHeaders.size() > 0 ) {
+                if (responseHeaders.size() > 0) {
                     sendHeaders();
                 }
 
-                if(!headersSent) {
-                    if(serverSettings.isDocumentRootEnabled()) {
+                if (!headersSent) {
+                    if (serverSettings.isDocumentRootEnabled()) {
                         sendFile();
                     } else {
                         setAnswer(ServerStatus.SERVER_ERROR);
@@ -96,6 +97,27 @@ public abstract class ContentProvider {
             //can't work with stream!
         } catch (NullPointerException e) {
             //Socket probably is already closed
+        } finally {
+            try {
+                socketOutputStream.close();
+            } catch (Exception e) {
+                System.out.println("Already closed socketOutputStream");
+            }
+            try {
+                socketInputStream.close();
+            } catch (Exception e) {
+                System.out.println("Already closed socketInputStream");
+            }
+            try {
+                usingSocket.close();
+            } catch (Exception e) {
+                System.out.println("Already closed usingsocket");
+            }
+            try {
+                plainSocket.close();
+            } catch (Exception e) {
+                System.out.println("Already closed plainsocket");
+            }
         }
     }
 
@@ -116,7 +138,7 @@ public abstract class ContentProvider {
         setAnswer(ServerStatus.MOVED);
         int serverPort = getServerPort();
         String portString = "";
-        if(serverPort != 443) {
+        if (serverPort != 443) {
             portString = ":" + serverPort;
         }
         setHeader("Location: https://" + getHost() + portString + getQueryString());
@@ -133,9 +155,9 @@ public abstract class ContentProvider {
     }
 
     private void sendHeaders() {
-        if(!headersSent) {
+        if (!headersSent) {
             writeAnswer();
-            if(responseHeaders.size() == 0) {
+            if (responseHeaders.size() == 0) {
                 responseHeaders = serverSettings.getDefaultHeaders();
             }
             for (String header : responseHeaders) {
@@ -153,13 +175,13 @@ public abstract class ContentProvider {
             int c = 0;
             byte[] b = new byte[2048]; //bytes per line
             int iter = 0;
-            while ( (c = inputStream.read()) != -1) {
+            while ((c = inputStream.read()) != -1) {
                 char cChar = (char) c;
-                if(iter == 0 && c == 22) {
+                if (iter == 0 && c == 22) {
                     usingSocket.close();
                     return;
                 }
-                if(cChar == '\n') {
+                if (cChar == '\n') {
                     String cLine = new String(b, 0, iter).replace("\r", "");
                     headers.add(cLine);
                     iter = 0;
@@ -168,7 +190,7 @@ public abstract class ContentProvider {
                     }
 
                     //Headers name=>value storage
-                    if(!first && cLine.contains(":")) {
+                    if (!first && cLine.contains(":")) {
                         String left = cLine.substring(0, cLine.indexOf(":"));
                         String right = null;
                         try {
@@ -176,10 +198,10 @@ public abstract class ContentProvider {
                         } catch (Exception e) {
 
                         }
-                        if(right != null) {
+                        if (right != null) {
                             headersData.put(left.trim().toLowerCase(), right.trim());
                         }
-                    }else{
+                    } else {
 
                     }
                     first = false;
@@ -195,7 +217,7 @@ public abstract class ContentProvider {
     }
 
     private void parseServerData() {
-        if(headers.size() > 0 && (headers.get(0).startsWith("POST") || headers.get(0).startsWith("GET"))) {
+        if (headers.size() > 0 && (headers.get(0).startsWith("POST") || headers.get(0).startsWith("GET"))) {
             requestMethod = headers.get(0).startsWith("GET") ? RequestMethod.GET : RequestMethod.POST;
             try {
                 queryString = headers.get(0).split(" ")[1];
@@ -218,17 +240,18 @@ public abstract class ContentProvider {
             contentLength = 0;
         }
         int allowedPostSize = serverSettings.getMaxPostSize() * 1024 * 1024;
-        if(requestMethod == RequestMethod.POST && contentLength > 0 && contentLength < allowedPostSize) {
+        if (requestMethod == RequestMethod.POST && contentLength > 0 && contentLength < allowedPostSize) {
             parseEncType();
-            if(encType == EncType.WWW_FORM) {
+            if (encType == EncType.WWW_FORM) {
                 byte[] b = new byte[contentLength];
                 try {
                     socketInputStream.read(b);
                     String postString = new String(b);
+                    rawPost = postString;
                     String[] postData = postString.split("&");
-                    for(String curPost : postData) {
+                    for (String curPost : postData) {
                         String[] postVals = curPost.split("=");
-                        if(postVals.length == 2) {
+                        if (postVals.length == 2) {
                             post.put(postVals[0], postVals[1]);
                         }
                     }
@@ -240,10 +263,10 @@ public abstract class ContentProvider {
                 byte[] line = readLine(1024);
                 while (line.length > 0) {
                     String cLine = new String(line);
-                    if(cLine.startsWith("Content-Disposition:")) {
+                    if (cLine.startsWith("Content-Disposition:")) {
                         String[] parameters = cLine.split("; ");
                         String postInputName = parameters[1].split("=")[1].replace("\"", "").replace("\r", "").replace("\n", "");
-                        if(cLine.contains("filename=\"")) {
+                        if (cLine.contains("filename=\"")) {
                             String uploadFileName = parameters[2].split("=")[1].replace("\"", "").replace("\r", "").replace("\n", "");
                             String contentType = new String(readLine(1024)).replace("\r", "").replace("\n", "");
                             readLine(2);
@@ -265,7 +288,7 @@ public abstract class ContentProvider {
                             ByteArrayOutputStream byteArrayOutputStream = new ByteArrayOutputStream();
                             readPostMultipartData(byteArrayOutputStream);
                             byte[] post = byteArrayOutputStream.toByteArray();
-                            if(post.length > 0) {
+                            if (post.length > 0) {
                                 this.post.put(postInputName, new String(post));
                             }
                         }
@@ -278,7 +301,7 @@ public abstract class ContentProvider {
 
     private void readPostMultipartData(OutputStream outputStream) {
         byte[] buffer1 = readLine(4096);
-        if(!checkIsBoundary(buffer1)) {
+        if (!checkIsBoundary(buffer1)) {
             try {
                 while (true) {
                     byte[] buffer2 = readLine(4096);
@@ -298,9 +321,9 @@ public abstract class ContentProvider {
 
     private boolean checkIsBoundary(byte[] line) {
         boolean ret = false;
-        if(line.length >= boundayLength && line.length <= boundayLength + 7) { //7 указано примерно, так как впереди и после boundary браузеры добавляют --, а также запас для новой строки
+        if (line.length >= boundayLength && line.length <= boundayLength + 7) { //7 указано примерно, так как впереди и после boundary браузеры добавляют --, а также запас для новой строки
             String string = new String(line);
-            if(string.contains(boundary)) {
+            if (string.contains(boundary)) {
                 ret = true;
             }
         }
@@ -311,15 +334,15 @@ public abstract class ContentProvider {
         int current = 0;
         int count = 0;
         byte[] lineBuffer = new byte[buffer];
-        while (postRest > 0 ) {
+        while (postRest > 0) {
             try {
-                if(count == buffer) {
+                if (count == buffer) {
                     break;
                 }
                 current = socketInputStream.read();
                 postRest--;
                 lineBuffer[count++] = (byte) current;
-                if( (char) current == '\n' ) {
+                if ((char) current == '\n') {
                     break;
                 }
             } catch (IOException e) {
@@ -332,7 +355,7 @@ public abstract class ContentProvider {
     private void parseEncType() {
         String contentType = getHeaderValue("content-type");
         encType = contentType != null && contentType.contains("multipart/form-data") ? EncType.MULTIPART : EncType.WWW_FORM;
-        if(encType == EncType.MULTIPART) {
+        if (encType == EncType.MULTIPART) {
             String boundaryName = "boundary=";
             int pos = contentType.indexOf(boundaryName);
             int length = boundaryName.length();
@@ -343,11 +366,11 @@ public abstract class ContentProvider {
     }
 
     private void parseGet() {
-        if(queryString.contains("?")) {
+        if (queryString.contains("?")) {
             String[] act = queryString.substring(queryString.indexOf("?") + 1).split("&");
-            for(String current : act) {
+            for (String current : act) {
                 String[] values = current.split("=");
-                if(values.length == 2) {
+                if (values.length == 2) {
                     get.put(values[0], values[1]);
                 }
             }
@@ -355,13 +378,20 @@ public abstract class ContentProvider {
     }
 
     private void writeAnswer() {
-            String code = null;
-            switch (serverStatus) {
-                case OK: code = "HTTP/1.1 200 OK"; break;
-                case NOT_FOUND: code = "HTTP/1.1 404 Not Found"; break;
-                case MOVED: code = "HTTP/1.1 302 Moved Temporary"; break;
-                default: code = "HTTP/1.1 500 Internal Server Error";
-            }
+        String code = null;
+        switch (serverStatus) {
+            case OK:
+                code = "HTTP/1.1 200 OK";
+                break;
+            case NOT_FOUND:
+                code = "HTTP/1.1 404 Not Found";
+                break;
+            case MOVED:
+                code = "HTTP/1.1 302 Moved Temporary";
+                break;
+            default:
+                code = "HTTP/1.1 500 Internal Server Error";
+        }
 
         try {
             socketOutputStream.write((code + "\r\n").getBytes());
@@ -389,7 +419,7 @@ public abstract class ContentProvider {
 
     private void sendFile() {
         String path = getPath();
-        if(path == null || path.equals("")) {
+        if (path == null || path.equals("")) {
             path = directoryIndex;
         }
         try {
@@ -405,7 +435,7 @@ public abstract class ContentProvider {
             writeString("\r\n");
             byte[] buffer = new byte[4096];
             int count;
-            while ( (count = inputStream.read(buffer)) > 0) {
+            while ((count = inputStream.read(buffer)) > 0) {
                 writeBytes(buffer, 0, count);
             }
             inputStream.close();
@@ -425,7 +455,7 @@ public abstract class ContentProvider {
 
     private void removePostFiles() {
         Set<String> keys = postFiles.keySet();
-        for(String key : keys) {
+        for (String key : keys) {
             PostFile postFile = postFiles.get(key);
             postFile.remove();
         }
@@ -446,6 +476,7 @@ public abstract class ContentProvider {
     public void setAnswer(ServerStatus serverStatus) {
         this.serverStatus = serverStatus;
     }
+
     public List<String> getHeaders() {
         return headers;
     }
@@ -458,13 +489,17 @@ public abstract class ContentProvider {
         return path;
     }
 
+    public RequestMethod getRequestMethod() {
+        return requestMethod;
+    }
+
     public String get(String parameter) {
         return urlDecode(get.get(parameter));
     }
 
     public String urlDecode(String string) {
         String ret = null;
-        if(string != null) {
+        if (string != null) {
             try {
                 ret = URLDecoder.decode(string, "UTF-8");
             } catch (UnsupportedEncodingException e) {
@@ -472,6 +507,10 @@ public abstract class ContentProvider {
             }
         }
         return ret;
+    }
+
+    public String getRawPost() {
+        return rawPost;
     }
 
     public String getHeaderValue(String header) {
@@ -496,7 +535,7 @@ public abstract class ContentProvider {
 
     public String getHost() {
         String host = getHeaderValue("host");
-        if(host.contains(":")) {
+        if (host.contains(":")) {
             return host.split(":")[0];
         } else {
             return host;
@@ -516,14 +555,26 @@ public abstract class ContentProvider {
     }
 
     public void echo(byte[] bytes) {
-        if(!headersSent) {
+        if (!headersSent) {
             sendHeaders();
         }
         writeBytes(bytes);
     }
 
     public void echo(String string) {
-        echo(string.getBytes());
+        if (string == null) {
+            echo("null");
+        } else {
+            echo(string.getBytes());
+        }
+    }
+
+    public void echo(Object object) {
+        if (object == null) {
+            echo("null");
+        } else {
+            echo(object.toString());
+        }
     }
 
     public abstract void execute();

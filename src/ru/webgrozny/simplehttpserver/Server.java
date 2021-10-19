@@ -88,7 +88,12 @@ public class Server {
                         }
                     };
                 }
-                contentProvider.start(socket, serverSettings, sslContext);
+                try {
+                    contentProvider.start(socket, serverSettings, sslContext);
+                } catch (Exception e) {
+                    System.out.println("Server error: " + e.getMessage());
+                }
+
                 try {
                     socket.close();
                 } catch (IOException e) {
