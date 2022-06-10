@@ -17,6 +17,8 @@ public class ServerSettings {
     private String jksPass;
     private int maxPostSize = 4;
     private PlainOnSSL operation;
+    private String bindTo = "0.0.0.0";
+    private int backLog = 64;
 
     private ServerSettings(String documentRoot, String postFileTempDir, String directoryIndex, int port) {
         this.documentRoot = documentRoot;
@@ -33,6 +35,16 @@ public class ServerSettings {
 
     public ServerSettings setMaxPostSize(int valueMB) {
         maxPostSize = valueMB;
+        return this;
+    }
+
+    public ServerSettings setBindTo(String bindTo) {
+        this.bindTo = bindTo;
+        return this;
+    }
+
+    public ServerSettings setBacklog(int count) {
+        this.backLog = count;
         return this;
     }
 
@@ -128,5 +140,13 @@ public class ServerSettings {
 
     public PlainOnSSL getPlainOnSSLOperation() {
         return operation;
+    }
+
+    public String getBindTo() {
+        return bindTo;
+    }
+
+    public int getBackLog() {
+        return backLog;
     }
 }

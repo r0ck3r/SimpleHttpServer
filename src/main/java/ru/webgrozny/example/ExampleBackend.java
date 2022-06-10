@@ -1,4 +1,4 @@
-package ru.webgrozny.model;
+package ru.webgrozny.example;
 
 import ru.webgrozny.simplehttpserver.ContentProvider;
 

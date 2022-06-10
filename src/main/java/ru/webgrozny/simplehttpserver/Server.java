@@ -1,12 +1,13 @@
 package ru.webgrozny.simplehttpserver;
 
+import ru.webgrozny.simplehttpserver.exceptions.ServerBindException;
+import ru.webgrozny.simplehttpserver.exceptions.SslInitException;
+
 import javax.net.ServerSocketFactory;
 import javax.net.ssl.*;
 import java.io.FileInputStream;
 import java.io.IOException;
-import java.net.ServerSocket;
-import java.net.Socket;
-import java.net.SocketException;
+import java.net.*;
 import java.security.*;
 import java.security.cert.CertificateException;
 
@@ -24,11 +25,11 @@ public class Server {
         this.port = serverSettings.getPort();
     }
 
-    public void start() {
-        if(!started) {
+    public void start() throws ServerBindException, SslInitException {
+        if (!started) {
             started = true;
             try {
-                if(serverSettings.getJksKey() != null && serverSettings.getJksPass() != null) {
+                if (serverSettings.getJksKey() != null && serverSettings.getJksPass() != null) {
                     String jksFile = serverSettings.getJksKey();
                     String jksPass = serverSettings.getJksPass();
                     try {
@@ -38,19 +39,15 @@ public class Server {
                         kmf.init(ks, jksPass.toCharArray());
                         sslContext = SSLContext.getInstance("TLS");
                         sslContext.init(kmf.getKeyManagers(), null, null);
-                    } catch (KeyStoreException e) {
-                        e.printStackTrace();
-                    } catch (CertificateException e) {
-                        e.printStackTrace();
-                    } catch (UnrecoverableKeyException e) {
-                        e.printStackTrace();
-                    } catch (NoSuchAlgorithmException e) {
-                        e.printStackTrace();
-                    } catch (KeyManagementException e) {
-                        e.printStackTrace();
+                    } catch (Exception e) {
+                        throw new SslInitException();
                     }
                 }
-                serverSocket = new ServerSocket(port);
+                if (serverSettings.getBindTo().equals("0.0.0.0")) {
+                    serverSocket = new ServerSocket(port, serverSettings.getBackLog());
+                } else {
+                    serverSocket = new ServerSocket(port, serverSettings.getBackLog(), InetAddress.getByName(serverSettings.getBindTo()));
+                }
                 while (started) {
                     try {
                         appendClient(serverSocket.accept());
@@ -58,14 +55,16 @@ public class Server {
 
                     }
                 }
+            } catch (BindException e) {
+                throw new ServerBindException(serverSettings.getBindTo(), serverSettings.getPort());
             } catch (IOException e) {
-                e.printStackTrace();
+                System.out.println("Can't start server");
             }
         }
     }
 
     public void stop() {
-        if(started) {
+        if (started) {
             started = false;
             try {
                 serverSocket.close();
@@ -80,7 +79,7 @@ public class Server {
             @Override
             public void run() {
                 ContentProvider contentProvider = providerGenerator.generate();
-                if(contentProvider == null) {
+                if (contentProvider == null) {
                     contentProvider = new ContentProvider() {
                         @Override
                         public void execute() {
