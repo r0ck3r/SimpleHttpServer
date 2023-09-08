@@ -66,8 +66,9 @@ public abstract class ContentProvider {
             }
 
             socketOutputStream = usingSocket.getOutputStream();
-
+            usingSocket.setSoTimeout(10000);
             parseHeaders();
+            usingSocket.setSoTimeout(60000);
             if (headers.size() > 0) {
                 parseServerData();
                 parseGet();
@@ -212,7 +213,7 @@ public abstract class ContentProvider {
             }
 
         } catch (IOException e) {
-            e.printStackTrace();
+            //e.printStackTrace();
         }
     }
 
